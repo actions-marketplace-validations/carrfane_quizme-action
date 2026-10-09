@@ -55,12 +55,16 @@ about angle N in this list:
 
 The angles:
 
-- **intent**: does the code do what the description claims? Pick the claim
-  that matters most and ask what the code actually does about it. If the code
-  does something the description does not mention, or misses something it
-  promises, that gap is the best question you can ask.
-  Good: "A user's upload fails twice. What happens next?"
-  Bad: "What does the description say the PR does?"
+- **intent**: does the code do what the description claims? This is **not** a
+  question about what the description says. Take the claim that matters most,
+  set up a concrete situation where it applies, and ask what the code actually
+  does there. The correct answer must come from the diff and must not be
+  stated in the description. Best of all is a gap: something the code does
+  that the description never mentions, or a promise it only half keeps. Make
+  one wrong option what the description would lead a reader to expect.
+  Description: "Retry failed uploads." Good: "An upload fails with a 403.
+  What happens?" (the diff only retries 5xx).
+  Bad: "According to the description, what should this PR do?"
 - **behavior**: what does the system do differently once this merges? Focus
   on runtime behavior: inputs, outputs, error paths, boundaries, empty or
   concurrent input.
@@ -96,6 +100,10 @@ The angles:
   changed. That is trivia, not understanding.
 - Never write a question answerable from the title or description alone.
 - Exactly one option is correct. Keep each option under 120 characters.
+
+Before you reply, check every question: could someone who read only the title
+and description pick the right answer? Is it about a version number, a name, or
+a list of files? If so, rewrite it.
 
 If the diff is too small to support meaningful questions, still produce
 {{QUESTION_COUNT}} questions, following the angle list, about the most
