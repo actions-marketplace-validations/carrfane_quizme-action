@@ -12,6 +12,7 @@
  */
 
 import { publicError } from './errors.mjs';
+import { ANGLES } from './slots.mjs';
 
 export const MARKERS = {
   quiz: 'quizme:quiz',
@@ -87,7 +88,7 @@ export function renderQuiz({ sha, quiz, prompt }) {
   ];
 
   quiz.questions.forEach((question, i) => {
-    lines.push(`**${i + 1}.** ${question.question}`, '');
+    lines.push(`**${i + 1}.** ${angleLabel(question)}${question.question}`, '');
     for (const letter of OPTION_LETTERS) {
       lines.push(`- [ ] ${letter}. ${question.options[letter]}`);
     }
@@ -176,7 +177,7 @@ export function renderResults({ sha, quiz, selections, result, actor }) {
   quiz.questions.forEach((question, i) => {
     const outcome = result.outcomes[i];
     const icon = outcome.correct ? '✅' : '❌';
-    lines.push(`**${i + 1}.** ${icon} ${question.question}`, '');
+    lines.push(`**${i + 1}.** ${icon} ${angleLabel(question)}${question.question}`, '');
 
     const selectedText = outcome.selected
       ? `**${outcome.selected}.** ${question.options[outcome.selected]}`
@@ -229,6 +230,13 @@ export function stripNudge(body) {
     new RegExp(`\\n*<!-- ${MARKERS.nudge} -->[\\s\\S]*?<!-- /${MARKERS.nudge} -->`, 'g'),
     '',
   );
+}
+
+/** Keys from quizzes posted before angles existed have none: render as before. */
+function angleLabel(question) {
+  // hasOwn, so a decoded key like "constructor" cannot match.
+  if (typeof question.angle !== 'string' || !Object.hasOwn(ANGLES, question.angle)) return '';
+  return `_${ANGLES[question.angle]}_ — `;
 }
 
 function splitQuestionBlocks(body) {
