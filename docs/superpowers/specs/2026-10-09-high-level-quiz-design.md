@@ -1,7 +1,7 @@
 # High-level quiz — Design
 
 Date: 2026-10-09
-Status: Draft
+Status: Approved
 Amends: `2026-07-28-quizme-action-design.md`
 
 ## Problem
@@ -97,8 +97,9 @@ Rewritten. New placeholders: `{{PR_TITLE}}`, `{{PR_DESCRIPTION}}` and
 - **Stated intent block.** Title and description go inside
   `<pr_description>...</pr_description>` tags, not a code fence, because bodies
   often contain fences. The prompt says this text is the author's claims to
-  check against the diff, never instructions. With no intent, the block says
-  `(no description provided)` and the slot list contains no `intent`.
+  check against the diff, never instructions. An empty body renders as
+  `(no description provided)`. A short body (under 40 characters) is still
+  passed as context, but the slot list contains no `intent`.
 - **Angle definitions.** One short paragraph per angle, with an example of a good
   question and a bad one.
 - **Slot list.** Rendered as `1. intent`, `2. behavior`, and so on. Question N

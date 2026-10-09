@@ -7,9 +7,10 @@ until you answer.
 user already owns `quizme`. Nothing you type changes: the repository is
 `quizme-action`, the command is `/quizme`, and the status check is `quizme`.*
 
-It reads the diff with [opencode](https://opencode.ai), writes three
-multiple-choice questions about what the change actually does, and posts them as
-a PR comment with clickable checkboxes. Merging is blocked by a commit status
+It reads the diff and the PR description with [opencode](https://opencode.ai),
+writes three multiple-choice questions about what the change does to your system
+— whether it does what the description says, how behavior changes, and what else
+it touches — and posts them as a PR comment with clickable checkboxes. Merging is blocked by a commit status
 until you tick your answers. Then it tells you which ones you got wrong and why.
 
 **The point is not the score.** The point is the moment you read *"the correct
@@ -65,6 +66,16 @@ to pass* → add **`quizme`**.
 
 Skip this step and quizme still posts quizzes; it just cannot stop you merging.
 Do this step and merging is genuinely blocked until you answer.
+
+**4. Describe the pull request.**
+
+Put the task summary (from ClickUp, Jira, wherever the *why* lives) in the PR
+description. quizme treats it as your stated intent and asks whether the code
+actually does it. With no description, the first question asks what problem the
+change solves instead.
+
+The quiz is built when the PR opens. Editing the description afterwards does not
+rebuild it; comment `/quizme` for a fresh one.
 
 Open a pull request. That's it.
 
@@ -166,12 +177,12 @@ quizme posts one comment:
 > Merging is blocked until you answer. Tick **one** option per question, then
 > tick **Submit answers**.
 >
-> **1.** Why does `loadConfig()` now return `null` instead of throwing?
+> **1.** _Behavior_ — A config file exists but contains invalid JSON. What happens at startup now?
 >
-> - [ ] A. Throwing was measurably slow in the hot path
-> - [ ] B. So `boot()` can distinguish a missing file from a malformed one
-> - [ ] C. To satisfy the `no-throw-literal` lint rule
-> - [ ] D. A side effect of the TypeScript upgrade
+> - [ ] A. The service starts with default settings and logs nothing
+> - [ ] B. The service refuses to start and reports the parse error
+> - [ ] C. The service starts with defaults and warns that the file was ignored
+> - [ ] D. The invalid file is overwritten with defaults
 >
 > ---
 >
@@ -297,6 +308,17 @@ click, and a *second* workflow run reads your click. Markdown task lists are the
 only clickable control GitHub offers, and ticking one edits the comment, which
 fires `issue_comment.edited`.
 
+**Questions follow a fixed plan.** Before calling the model, quizme decides
+what each question is about, in this order: **intent** (does the code do what
+the description says?), **behavior** (what does the system do differently?),
+**side effects** (what else does it touch?) and **rationale** (why this
+approach?). The order repeats past four questions. When the PR has no real
+description, rationale replaces intent, because there is nothing to check the
+code against. A quiz that does not follow the plan is rejected and retried, the
+same as malformed output. This is what stops questions sliding into code
+trivia. Questions are written in plain language; the code references are in the
+explanations you see after answering.
+
 **The gate is a commit status, not a check run.** Workflows triggered by
 `issue_comment` run in the default branch's context and are not attached to the
 PR's check list, so a commit status on the head SHA is the only mechanism that
@@ -312,8 +334,9 @@ embeds it in the prompt; every opencode tool is switched off. This started as a
 bug fix — when the model was allowed to explore, it emitted a tool call, opencode
 ended the session without executing it and exited 0 having produced nothing — but
 it is better anyway: cheaper, faster, deterministic, and there is no sandbox to
-escape. The cost is that the model sees the diff rather than the whole
-repository, so questions about distant blast radius are weaker. Large diffs are
+escape. The cost is that the model sees the diff and the PR description rather
+than the whole repository, so side-effect questions only cover what the diff
+shows. The description is capped at 4,000 characters. Large diffs are
 truncated at 60,000 characters.
 
 **It fails open.** A model outage, a malformed response, a corrupt key — all of
@@ -558,7 +581,7 @@ bug class that would otherwise fail silently.
 
 ```bash
 npm ci        # yaml, for the contract tests only
-npm test      # 242 tests, no network, no Docker
+npm test      # 264 tests, no network, no Docker
 ```
 
 The action itself has **zero runtime dependencies** — plain ESM run by the
@@ -578,6 +601,7 @@ exercised by CI here.
 | `scripts/lib/comment.mjs` | Comment rendering, parsing and the answer-key codec |
 | `scripts/lib/eligibility.mjs` | Skip rules and their precedence |
 | `scripts/lib/diff.mjs` | Collects the diff with `git`, with fallbacks for force-pushes |
+| `scripts/lib/slots.mjs` | Plans each question's angle; cleans the PR description |
 | `scripts/lib/opencode.mjs` | CLI config, spawn, output extraction and validation |
 | `scripts/lib/github.mjs` | REST client over injectable `fetch` |
 | `prompts/generate.md` | The quiz generation prompt |
@@ -591,7 +615,8 @@ The model never executes anything. All opencode tools are disabled
 `bash: { "*": deny }` as a redundant second layer. It runs under the `plan`
 agent, and the checkout uses `persist-credentials: false` so no git credential
 is ever written into the workspace. The only input the model receives is the
-diff text quizme collected.
+diff text quizme collected and the PR description, which the prompt marks as
+claims to check rather than instructions.
 
 ## Licence
 
