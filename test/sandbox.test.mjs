@@ -330,6 +330,7 @@ test('an empty RUNNER_TEMP does not produce a relative sandbox path', async () =
 
 const SANDBOX_QUIZ = {
   questions: Array.from({ length: 3 }, (_, i) => ({
+    angle: ['rationale', 'behavior', 'side_effects'][i],
     question: `Q${i + 1}?`,
     options: { A: 'a', B: 'b', C: 'c', D: 'd' },
     answer: 'A',

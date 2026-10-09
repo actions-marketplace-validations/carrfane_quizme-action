@@ -35,12 +35,14 @@ import {
 const QUIZ = {
   questions: [
     {
+      angle: 'rationale',
       question: 'Why null?',
       options: { A: 'a1', B: 'b1', C: 'c1', D: 'd1' },
       answer: 'B',
       explanation: 'e1',
     },
     {
+      angle: 'behavior',
       question: 'What breaks?',
       options: { A: 'a2', B: 'b2', C: 'c2', D: 'd2' },
       answer: 'C',
