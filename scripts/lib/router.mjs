@@ -148,6 +148,8 @@ function prContext(pr) {
     baseRef: pr.base?.ref ?? '',
     prUrl: pr.html_url ?? '',
     title: pr.title ?? '',
+    // The author's stated intent; generate checks the code against it.
+    body: pr.body ?? '',
   };
 }
 

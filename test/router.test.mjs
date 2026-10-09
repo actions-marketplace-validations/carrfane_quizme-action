@@ -230,3 +230,18 @@ test('an unsupported event does nothing', async () => {
   const result = await route({}, 'push');
   assert.equal(result.mode, 'none');
 });
+
+test('generate decisions carry the PR body as stated intent', async () => {
+  const opened = await route(prEvent('opened', { body: 'Task summary from ClickUp' }), 'pull_request');
+  assert.equal(opened.mode, 'generate');
+  assert.equal(opened.body, 'Task summary from ClickUp');
+
+  const forced = await route(commentEvent({ body: '/quizme' }), 'issue_comment', {
+    lookups: { getPullRequest: async () => ({ ...PR, body: 'From the API' }) },
+  });
+  assert.equal(forced.mode, 'generate');
+  assert.equal(forced.body, 'From the API');
+
+  const empty = await route(prEvent('opened', { body: null }), 'pull_request');
+  assert.equal(empty.body, '');
+});
