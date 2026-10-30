@@ -26,6 +26,7 @@ import {
 } from './comment.mjs';
 import { gradeQuiz } from './grade.mjs';
 import { collectDiff } from './diff.mjs';
+import { planSlots, cleanDescription } from './slots.mjs';
 import {
   renderPrompt,
   extractQuiz,
@@ -134,7 +135,14 @@ async function generateQuiz({ decision, inputs, deps, log, attempt }) {
   }
   log(`quizme: diff range ${diff.range}, ${diff.patch.length} characters${diff.truncated ? ' (truncated)' : ''}`);
 
+  // The description is the author's stated intent. Without a usable one there is
+  // nothing to check the code against, so the plan swaps intent for rationale.
+  const description = cleanDescription(decision.body);
+  const slots = planSlots(inputs.questionCount, description.hasIntent);
+  log(`quizme: slots ${slots.join(',')}`);
+
   const template = await (deps.readPrompt ?? readPromptFile)();
+  // One regex pass, so a body that contains `{{DIFF}}` stays literal text.
   const prompt = renderPrompt(template, {
     QUESTION_COUNT: inputs.questionCount,
     BASE_REF: decision.baseRef,
@@ -142,6 +150,9 @@ async function generateQuiz({ decision, inputs, deps, log, attempt }) {
     COMMITS: diff.commits || '(no commit list available)',
     DIFF_STAT: diff.stat || '(no summary available)',
     DIFF: diff.patch,
+    PR_TITLE: decision.title || '(no title)',
+    PR_DESCRIPTION: description.text || '(no description provided)',
+    SLOTS: slots.map((angle, i) => `${i + 1}. ${angle}`).join('\n'),
   });
 
   // Note the cwd: the sandbox, never `workdir`. The diff is already in the
@@ -166,7 +177,7 @@ async function generateQuiz({ decision, inputs, deps, log, attempt }) {
   if (!raw) {
     throw describeMissingQuiz(stdout);
   }
-  return validateQuiz(raw, inputs.questionCount);
+  return validateQuiz(raw, slots);
 }
 
 async function grade({ decision, inputs, client, log }) {

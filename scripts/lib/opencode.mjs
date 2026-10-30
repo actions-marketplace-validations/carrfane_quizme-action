@@ -10,6 +10,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { publicError, forComment } from './errors.mjs';
+import { ANGLES, normaliseAngle } from './slots.mjs';
 
 /**
  * Every tool opencode ships, all switched off.
@@ -233,7 +234,11 @@ function firstJsonObject(text) {
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
-export function validateQuiz(quiz, expectedCount) {
+/**
+ * @param {string[]} slots planned angle per question, from planSlots
+ */
+export function validateQuiz(quiz, slots) {
+  const expectedCount = slots.length;
   // These messages interpolate only integers and a question index, so they are
   // safe to publish and tell the author the model misbehaved. The one exception
   // is the answer check below, which echoes model output.
@@ -272,6 +277,13 @@ export function validateQuiz(quiz, expectedCount) {
       );
     }
     if (!nonEmpty(question.explanation)) throw publicError(`${at} has an empty "explanation".`);
+
+    const angle = normaliseAngle(question.angle);
+    if (angle !== slots[i]) {
+      // Only known keys are interpolated: an unknown angle is model output.
+      const got = Object.hasOwn(ANGLES, angle) ? `"${angle}"` : 'an unknown angle';
+      throw publicError(`${at} is about ${got}, expected "${slots[i]}".`);
+    }
   });
 
   const unique = new Set(quiz.questions.map((q) => q.question.trim().toLowerCase()));
@@ -281,6 +293,7 @@ export function validateQuiz(quiz, expectedCount) {
 
   return {
     questions: quiz.questions.map((question) => ({
+      angle: normaliseAngle(question.angle),
       question: String(question.question).trim(),
       options: Object.fromEntries(
         LETTERS.map((letter) => [letter, String(question.options[letter]).trim()]),

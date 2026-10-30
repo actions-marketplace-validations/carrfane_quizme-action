@@ -261,3 +261,50 @@ test('renderNotice is marked so it is never treated as a quiz', () => {
   assert.equal(parseQuizKey(body), null);
   assert.equal(isSubmitted(body), false);
 });
+
+const labelled = {
+  questions: quiz.questions.map((q, i) => ({ ...q, angle: ['intent', 'side_effects'][i] })),
+};
+
+test('renderQuiz labels each question with its angle', () => {
+  const body = renderQuiz({ sha: SHA, quiz: labelled });
+  assert.ok(body.includes(`**1.** _Intent_ — ${quiz.questions[0].question}`));
+  assert.ok(body.includes(`**2.** _Side effects_ — ${quiz.questions[1].question}`));
+});
+
+test('labels do not disturb selection parsing', () => {
+  const body = renderQuiz({ sha: SHA, quiz: labelled })
+    .replace('- [ ] B. So callers', '- [x] B. So callers')
+    .replace('- [ ] C. A 500', '- [x] C. A 500');
+  assert.deepEqual(parseSelections(body), { 1: 'B', 2: 'C' });
+});
+
+test('renderResults labels each question with its angle', () => {
+  const body = renderResults({
+    sha: SHA,
+    quiz: labelled,
+    selections: { 1: 'B', 2: 'A' },
+    result: {
+      correct: 1,
+      total: 2,
+      outcomes: [
+        { index: 1, selected: 'B', expected: 'B', correct: true },
+        { index: 2, selected: 'A', expected: 'C', correct: false },
+      ],
+    },
+    actor: 'carrfane',
+  });
+  assert.ok(body.includes(`**1.** ✅ _Intent_ — ${quiz.questions[0].question}`));
+  assert.ok(body.includes(`**2.** ❌ _Side effects_ — ${quiz.questions[1].question}`));
+});
+
+test('a quiz key from before angles existed renders without labels', () => {
+  const body = renderQuiz({ sha: SHA, quiz });
+  assert.ok(body.includes(`**1.** ${quiz.questions[0].question}`));
+  assert.ok(!body.includes('_Intent_'));
+});
+
+test('an unrecognised angle in a decoded key renders without a label', () => {
+  const odd = { questions: [{ ...quiz.questions[0], angle: 'constructor' }] };
+  assert.ok(renderQuiz({ sha: SHA, quiz: odd }).includes(`**1.** ${quiz.questions[0].question}`));
+});

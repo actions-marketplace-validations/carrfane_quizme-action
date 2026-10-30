@@ -330,6 +330,7 @@ test('an empty RUNNER_TEMP does not produce a relative sandbox path', async () =
 
 const SANDBOX_QUIZ = {
   questions: Array.from({ length: 3 }, (_, i) => ({
+    angle: ['rationale', 'behavior', 'side_effects'][i],
     question: `Q${i + 1}?`,
     options: { A: 'a', B: 'b', C: 'c', D: 'd' },
     answer: 'A',
@@ -343,4 +344,9 @@ test('the prompt tells the model it has no tools', () => {
   const prompt = readFileSync(new URL('prompts/generate.md', root), 'utf8');
   assert.match(prompt, /no \*\*tools\*\*|\*\*no tools\*\*/i);
   assert.match(prompt, /\{\{DIFF\}\}/, 'the diff must be embedded in the prompt');
+  for (const placeholder of ['PR_TITLE', 'PR_DESCRIPTION', 'SLOTS', 'QUESTION_COUNT', 'COMMITS', 'DIFF_STAT']) {
+    assert.match(prompt, new RegExp(`\\{\\{${placeholder}\\}\\}`), `prompt uses {{${placeholder}}}`);
+  }
+  assert.match(prompt, /<pr_description>[\s\S]*\{\{PR_DESCRIPTION\}\}[\s\S]*<\/pr_description>/);
+  assert.match(prompt, /"angle"/, 'the output example shows the angle field');
 });

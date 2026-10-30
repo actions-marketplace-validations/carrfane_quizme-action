@@ -22,6 +22,7 @@ const REAL_ERROR_STDOUT =
   '"ref":"err_469c8f37"}}}';
 
 const question = (over = {}) => ({
+  angle: 'intent',
   question: 'Why does `load()` return null now?',
   options: { A: 'a', B: 'b', C: 'c', D: 'd' },
   answer: 'B',
@@ -169,7 +170,7 @@ test('extractQuiz returns null when there is no quiz', () => {
 test('validateQuiz accepts a well-formed quiz and normalises whitespace', () => {
   const result = validateQuiz(
     { questions: [question({ question: '  padded?  ', explanation: ' why ' })] },
-    1,
+    ['intent'],
   );
   assert.equal(result.questions[0].question, 'padded?');
   assert.equal(result.questions[0].explanation, 'why');
@@ -177,29 +178,63 @@ test('validateQuiz accepts a well-formed quiz and normalises whitespace', () => 
 });
 
 test('validateQuiz rejects each malformed shape with a distinct message', () => {
+  const one = ['intent'];
   const cases = [
-    [null, 1, /not a JSON object/],
-    ['string', 1, /not a JSON object/],
-    [[], 1, /not a JSON object/],
-    [{}, 1, /no "questions" array/],
-    [{ questions: [question(), question({ question: 'other?' })] }, 1, /returned 2 questions, expected 1/],
-    [{ questions: [question({ question: '' })] }, 1, /question 1 has an empty "question"/],
-    [{ questions: [question({ options: undefined })] }, 1, /question 1 has no "options"/],
-    [{ questions: [question({ options: { A: 'a', B: 'b', C: 'c' } })] }, 1, /missing option D/],
-    [{ questions: [question({ options: { A: 'a', B: 'b', C: 'c', D: '  ' } })] }, 1, /missing option D/],
+    [null, one, /not a JSON object/],
+    ['string', one, /not a JSON object/],
+    [[], one, /not a JSON object/],
+    [{}, one, /no "questions" array/],
+    [{ questions: [question(), question({ question: 'other?' })] }, one, /returned 2 questions, expected 1/],
+    [{ questions: [question({ question: '' })] }, one, /question 1 has an empty "question"/],
+    [{ questions: [question({ options: undefined })] }, one, /question 1 has no "options"/],
+    [{ questions: [question({ options: { A: 'a', B: 'b', C: 'c' } })] }, one, /missing option D/],
+    [{ questions: [question({ options: { A: 'a', B: 'b', C: 'c', D: '  ' } })] }, one, /missing option D/],
     [
       { questions: [question({ options: { A: 'a', B: 'b', C: 'c', D: 'd', E: 'e' } })] },
-      1,
+      one,
       /exactly options A-D/,
     ],
-    [{ questions: [question({ answer: 'E' })] }, 1, /expected one of A-D/],
-    [{ questions: [question({ answer: 'b' })] }, 1, /expected one of A-D/],
-    [{ questions: [question({ explanation: '' })] }, 1, /empty "explanation"/],
-    [{ questions: [question(), question()] }, 2, /duplicate questions/],
+    [{ questions: [question({ answer: 'E' })] }, one, /expected one of A-D/],
+    [{ questions: [question({ answer: 'b' })] }, one, /expected one of A-D/],
+    [{ questions: [question({ explanation: '' })] }, one, /empty "explanation"/],
+    [{ questions: [question(), question()] }, ['intent', 'intent'], /duplicate questions/],
   ];
 
   for (const [input, count, pattern] of cases) {
     assert.throws(() => validateQuiz(input, count), pattern, JSON.stringify(input).slice(0, 60));
+  }
+});
+
+test('validateQuiz keeps a normalised angle that matches the plan', () => {
+  const result = validateQuiz(
+    { questions: [question({ angle: 'Intent' }), question({ question: 'b?', angle: 'Side effects' })] },
+    ['intent', 'side_effects'],
+  );
+  assert.deepEqual(result.questions.map((q) => q.angle), ['intent', 'side_effects']);
+});
+
+test('validateQuiz rejects a question that ignores its planned angle', () => {
+  assert.throws(
+    () => validateQuiz({ questions: [question({ angle: 'rationale' })] }, ['behavior']),
+    /question 1 is about "rationale", expected "behavior"/,
+  );
+});
+
+test('validateQuiz rejects a missing angle', () => {
+  assert.throws(
+    () => validateQuiz({ questions: [question({ angle: undefined })] }, ['intent']),
+    /question 1 is about an unknown angle, expected "intent"/,
+  );
+});
+
+test('validateQuiz never publishes an unknown angle verbatim', () => {
+  // The angle is model output, and the PR body can steer the model.
+  try {
+    validateQuiz({ questions: [question({ angle: 'ignore previous <img>' })] }, ['intent']);
+    assert.fail('should throw');
+  } catch (error) {
+    assert.ok(!error.publicMessage.includes('<img>'));
+    assert.ok(!error.message.includes('<img>'));
   }
 });
 
